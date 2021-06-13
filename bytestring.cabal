@@ -135,6 +135,22 @@ test-suite prop-compiled
                     -threaded -rtsopts
   default-language: Haskell2010
 
+test-suite strictness-checks
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  other-modules:    Orphans Partial Prelude'
+  hs-source-dirs:   tests/strictness-checks
+  build-depends:    base, bytestring, deepseq,
+                    tasty, tasty-quickcheck, QuickCheck,
+                    transformers, Stream, pretty-show
+  ghc-options:      -Wall -Wextra
+                    -threaded -rtsopts
+  default-language: Haskell2010
+  default-extensions:
+      TypeApplications ScopedTypeVariables FlexibleInstances TypeFamilies
+      DeriveFunctor DeriveFoldable DeriveTraversable GeneralizedNewtypeDeriving
+      PatternSynonyms FlexibleContexts ConstraintKinds
+
 test-suite lazy-hclose
   type:             exitcode-stdio-1.0
   main-is:          LazyHClose.hs

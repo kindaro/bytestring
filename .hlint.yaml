@@ -1,8 +1,9 @@
 - ignore:
     name: Use camelCase
-    within:
-      - Data.ByteString.Builder.Internal
-      - Data.ByteString.Short.Internal
+- ignore:
+    name: Redundant flip
+- ignore:
+    name: Use <$>
 - ignore:
     name: Use fewer imports
     within:
