@@ -138,7 +138,7 @@ test-suite prop-compiled
 test-suite strictness-checks
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
-  other-modules:    Orphans Partial Prelude'
+  other-modules:    Partial Prelude'
   hs-source-dirs:   tests/strictness-checks
   build-depends:    base, bytestring, deepseq,
                     tasty, tasty-quickcheck, QuickCheck,

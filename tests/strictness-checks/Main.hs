@@ -1,8 +1,9 @@
-{-# language ScopedTypeVariables, TypeFamilies, FlexibleContexts #-}
+{-# language ScopedTypeVariables, TypeFamilies, FlexibleContexts, TypeApplications #-}
 
 module Main where
 
 import Control.DeepSeq
+import Data.Coerce
 import qualified Data.Foldable as Foldable
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty)
@@ -17,7 +18,6 @@ import Test.Tasty
 import Test.Tasty.QuickCheck (Gen, Property, (===), Arbitrary (arbitrary), testProperty)
 import qualified Test.Tasty.QuickCheck as QuickCheck
 
-import Orphans ( )
 import Partial
 import Prelude'
 
@@ -31,7 +31,7 @@ main = defaultMain $ testGroup "All"
     ]
   ]
 
-foldrs :: [(String, V2 ((Named (Word8 -> Int -> Int), Int, ([NonEmpty Word8], [NonEmpty Word8])) -> Int))]
+foldrs :: [(String, V2 ((Named (Word8 -> Int -> Int), Int, ([ArbitraryNonEmpty Word8], [ArbitraryNonEmpty Word8])) -> Int))]
 foldrs =
   [ ( "foldr" , V2
       ( \ (function, initalAccumulator, listOfChunks) -> Lazy.foldr (named function) initalAccumulator ((chunksToByteStream . uncurry (++)) listOfChunks)
@@ -49,7 +49,7 @@ parameterFunctions =
 elaborateGenerator :: Gen (Named (Word8 -> Int -> Int)) -> Gen
   ( Specification (Total (Named (Word8 -> Int -> Int)))
   , Specification Int
-  , Specification ([Specification (NonEmpty (Specification Word8))], Specification [Specification (NonEmpty (Specification Word8))]) )
+  , Specification ([Specification (ArbitraryNonEmpty (Specification Word8))], Specification [Specification (ArbitraryNonEmpty (Specification Word8))]) )
 elaborateGenerator generator = do
   function <- generatePartial generator
   int <- arbitrary
@@ -78,8 +78,14 @@ extensionalEqualityWithStrictness (V2 (function, oracle)) generatorOfPartialInpu
     Left labelOfError -> QuickCheck.label labelOfError comparison
     Right _ -> QuickCheck.label "defined" comparison
 
-chunksToList :: [NonEmpty Word8] -> [Word8]
-chunksToList = concatMap NonEmpty.toList
+chunksToList :: [ArbitraryNonEmpty Word8] -> [Word8]
+chunksToList = coerce actualFunction
+  where
+    actualFunction :: [NonEmpty Word8] -> [Word8]
+    actualFunction = concatMap NonEmpty.toList
 
-chunksToByteStream :: [NonEmpty Word8] -> Lazy.ByteString
-chunksToByteStream = foldr (Lazy.Chunk . Strict.pack . NonEmpty.toList) Lazy.Empty
+chunksToByteStream :: [ArbitraryNonEmpty Word8] -> Lazy.ByteString
+chunksToByteStream = coerce actualFunction
+  where
+    actualFunction :: [NonEmpty Word8] -> Lazy.ByteString
+    actualFunction = foldr (Lazy.Chunk . Strict.pack . NonEmpty.toList) Lazy.Empty
