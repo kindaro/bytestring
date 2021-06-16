@@ -1,14 +1,19 @@
+{-# language DeriveTraversable, GeneralizedNewtypeDeriving #-}
+
 module Prelude' where
 
 import Control.Exception
 import Test.QuickCheck
-import Text.Show.Pretty
+import Text.Groom
 
 errorMessage :: ErrorCall -> String
 errorMessage (ErrorCall string) = string
 
 bind :: Monad monad => (input -> monad output) -> monad input -> monad output
 bind = (=<<)
+
+fork :: (input -> leftOutput) -> (input -> rightOutput) -> input -> (leftOutput, rightOutput)
+fork leftFunction rightFunction input = (leftFunction input, rightFunction input)
 
 newtype V2 a = V2 (a, a)
 
@@ -20,4 +25,4 @@ instance Arbitrary value => Arbitrary (Named value)
     shrink = traverse shrink
 
 newtype Pretty value = Pretty {pretty :: value} deriving (Eq, Arbitrary)
-instance Show value => Show (Pretty value) where show = ppShow . pretty
+instance Show value => Show (Pretty value) where show = groom . pretty

@@ -1,3 +1,9 @@
+{-# language
+    TypeApplications, FlexibleInstances, TypeFamilies, DeriveFunctor
+    , DeriveTraversable, GeneralizedNewtypeDeriving, PatternSynonyms
+    , FlexibleContexts, ConstraintKinds
+  #-}
+
 module Partial where
 
 import Control.DeepSeq
@@ -22,7 +28,7 @@ pattern Defined value = Specification (Just value)
 
 instance {-# overlappable #-} Arbitrary value => Arbitrary (Specification value) where
   arbitrary = generatePartial arbitrary
-  shrink (Specification (Just value)) = fmap (Specification . Just) (shrink value)
+  shrink (Specification (Just value)) = Undefined: fmap Defined (shrink value)
   shrink (Specification Nothing) = [ ]
 
 generatePartial :: Gen value -> Gen (Specification value)

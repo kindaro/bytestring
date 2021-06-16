@@ -1,3 +1,5 @@
+{-# language ScopedTypeVariables, TypeFamilies, FlexibleContexts #-}
+
 module Main where
 
 import Control.DeepSeq
@@ -5,6 +7,7 @@ import qualified Data.Foldable as Foldable
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty)
 import Data.Word
+import Data.Bitraversable
 
 import qualified Data.ByteString as Strict
 import qualified Data.ByteString.Lazy as Lazy
@@ -46,7 +49,7 @@ parameterFunctions =
 elaborateGenerator :: Gen (Named (Word8 -> Int -> Int)) -> Gen
   ( Specification (Total (Named (Word8 -> Int -> Int)))
   , Specification Int
-  , Specification ([Specification (NonEmpty Word8)], Specification [Specification (NonEmpty Word8)]) )
+  , Specification ([Specification (NonEmpty (Specification Word8))], Specification [Specification (NonEmpty (Specification Word8))]) )
 elaborateGenerator generator = do
   function <- generatePartial generator
   int <- arbitrary
@@ -69,9 +72,8 @@ extensionalEqualityWithStrictness :: forall specification input output.
 extensionalEqualityWithStrictness (V2 (function, oracle)) generatorOfPartialInput
   = QuickCheck.forAllShrinkShow generatorOfPartialInput QuickCheck.shrink (show . Pretty . observe)
   $ \ specification -> QuickCheck.ioProperty $ do
-  expected <- withErrors oracle specification
-  actual <- withErrors function specification
-  let comparison = Pretty expected === Pretty actual
+  (expected, actual) <- bisequence (fork ($ oracle) ($ function) (($ specification) . withErrors))
+  let comparison = Pretty actual === Pretty expected
   return $ case expected of
     Left labelOfError -> QuickCheck.label labelOfError comparison
     Right _ -> QuickCheck.label "defined" comparison
