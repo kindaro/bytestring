@@ -34,8 +34,12 @@ main = defaultMain $ testGroup "All"
 foldrs :: [(String, V2 ((Named (Word8 -> Int -> Int), Int, ([ArbitraryNonEmpty Word8], [ArbitraryNonEmpty Word8])) -> Int))]
 foldrs =
   [ ( "foldr" , V2
-      ( \ (function, initalAccumulator, listOfChunks) -> Lazy.foldr (named function) initalAccumulator ((chunksToByteStream . uncurry (++)) listOfChunks)
-      , \ (function, initalAccumulator, listOfChunks) -> Foldable.foldr (named function) initalAccumulator ((chunksToList . uncurry (++)) listOfChunks) ) )
+      ( \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
+          let byteStream = chunksToByteStream (headingChunks ++ trailingChunks)
+          in Lazy.foldr function initialAccumulator byteStream
+      , \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
+          let bytes = fmap NonEmpty.toList (coerce headingChunks ++ coerce trailingChunks :: [NonEmpty Word8])
+          in Foldable.foldr (flip (Foldable.foldr' function)) initialAccumulator bytes ) )
   ]
 
 parameterFunctions :: [(String, Gen (Named (Word8 -> Int -> Int)))]
@@ -49,7 +53,7 @@ parameterFunctions =
 elaborateGenerator :: Gen (Named (Word8 -> Int -> Int)) -> Gen
   ( Specification (Total (Named (Word8 -> Int -> Int)))
   , Specification Int
-  , Specification ([Specification (ArbitraryNonEmpty (Specification Word8))], Specification [Specification (ArbitraryNonEmpty (Specification Word8))]) )
+  , Specification ([Specification (ArbitraryNonEmpty Word8)], Specification [Specification (ArbitraryNonEmpty Word8)]) )
 elaborateGenerator generator = do
   function <- generatePartial generator
   int <- arbitrary
