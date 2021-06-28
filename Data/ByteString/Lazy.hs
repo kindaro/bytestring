@@ -624,7 +624,6 @@ scanl function = fmap (uncurry (flip snoc)) . mapAccumLChunks (S.mapAccumL (\x y
 {-# INLINE scanl #-}
 
 -- | 'scanl1' is a variant of 'scanl' that has no starting value argument.
--- This function will fuse.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString

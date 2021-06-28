@@ -410,7 +410,6 @@ scanl :: (Char -> Char -> Char) -> Char -> ByteString -> ByteString
 scanl f z = L.scanl (\a b -> c2w (f (w2c a) (w2c b))) (c2w z)
 
 -- | 'scanl1' is a variant of 'scanl' that has no starting value argument.
--- This function will fuse.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 scanl1 :: (Char -> Char -> Char) -> ByteString -> ByteString
