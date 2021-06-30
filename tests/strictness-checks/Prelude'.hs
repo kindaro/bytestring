@@ -4,6 +4,7 @@ module Prelude' where
 
 import Control.Exception
 import Data.Coerce
+import qualified Data.Foldable as Foldable
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.List.NonEmpty (NonEmpty ( ))
 import Data.Maybe
@@ -46,3 +47,24 @@ arbitraryNonEmpty = do
   return $ case xs of
     [ ] -> error "QuickCheck promises to give a non-empty list."
     (x: xs') -> x NonEmpty.:| xs'
+
+data StrictList a = !a :! StrictList a | StrictEmpty deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+
+listToStrictList :: [a] -> StrictList a
+listToStrictList = foldr (:!) StrictEmpty
+
+instance Arbitrary a => Arbitrary (StrictList a) where
+  arbitrary = fmap listToStrictList arbitrary
+  shrink = fmap listToStrictList . shrink . Foldable.toList
+
+instance Semigroup (StrictList a) where
+  xs <> ys = listToStrictList (Foldable.toList xs <> Foldable.toList ys)
+
+instance Monoid (StrictList a) where
+  mempty = StrictEmpty
+
+shouldBe :: (Eq value, Show value) => value -> value -> Property
+actual `shouldBe` expected
+  = counterexample ("Actual:  \t" ++ show (Pretty actual))
+  . counterexample ("Expected:\t" ++ show (Pretty expected))
+  $ actual == expected

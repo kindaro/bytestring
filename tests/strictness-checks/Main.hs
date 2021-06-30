@@ -15,7 +15,7 @@ import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Internal as Lazy
 
 import Test.Tasty
-import Test.Tasty.QuickCheck (Gen, Property, (===), Arbitrary (arbitrary), testProperty)
+import Test.Tasty.QuickCheck (Gen, Property, Arbitrary (arbitrary), testProperty)
 import qualified Test.Tasty.QuickCheck as QuickCheck
 
 import Partial
@@ -31,15 +31,22 @@ main = defaultMain $ testGroup "All"
     ]
   ]
 
-foldrs :: [(String, V2 ((Named (Word8 -> Int -> Int), Int, ([ArbitraryNonEmpty Word8], [ArbitraryNonEmpty Word8])) -> Int))]
+foldrs :: [(String, V2 ((Named (Word8 -> Int -> Int), Int, (StrictList (ArbitraryNonEmpty Word8), StrictList (ArbitraryNonEmpty Word8))) -> Int))]
 foldrs =
-  [ ( "foldr" , V2
+  [ ( "Lazy.foldr" , V2
       ( \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
-          let byteStream = chunksToByteStream (headingChunks ++ trailingChunks)
+          let byteStream = chunksToByteStream (headingChunks <> trailingChunks)
           in Lazy.foldr function initialAccumulator byteStream
       , \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
-          let bytes = fmap NonEmpty.toList (coerce headingChunks ++ coerce trailingChunks :: [NonEmpty Word8])
+          let bytes = fmap NonEmpty.toList (coerce headingChunks <> coerce trailingChunks :: StrictList (NonEmpty Word8))
           in Foldable.foldr (flip (Foldable.foldr' function)) initialAccumulator bytes ) )
+  , ( "Lazy.foldr'" , V2
+      ( \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
+          let byteStream = chunksToByteStream (headingChunks <> trailingChunks)
+          in Lazy.foldr' function initialAccumulator byteStream
+      , \ (Named _name function, initialAccumulator, (headingChunks, trailingChunks)) ->
+          let bytes = fmap NonEmpty.toList (coerce headingChunks <> coerce trailingChunks :: StrictList (NonEmpty Word8))
+          in Foldable.foldr' (flip (Foldable.foldr' function)) initialAccumulator bytes ) )
   ]
 
 parameterFunctions :: [(String, Gen (Named (Word8 -> Int -> Int)))]
@@ -53,7 +60,7 @@ parameterFunctions =
 elaborateGenerator :: Gen (Named (Word8 -> Int -> Int)) -> Gen
   ( Specification (Total (Named (Word8 -> Int -> Int)))
   , Specification Int
-  , Specification ([Specification (ArbitraryNonEmpty Word8)], Specification [Specification (ArbitraryNonEmpty Word8)]) )
+  , Specification (StrictList (Specification (ArbitraryNonEmpty Word8)), Specification (StrictList (Specification (ArbitraryNonEmpty Word8)))) )
 elaborateGenerator generator = do
   function <- generatePartial generator
   int <- arbitrary
@@ -77,7 +84,7 @@ extensionalEqualityWithStrictness (V2 (function, oracle)) generatorOfPartialInpu
   = QuickCheck.forAllShrinkShow generatorOfPartialInput QuickCheck.shrink (show . Pretty . observe)
   $ \ specification -> QuickCheck.ioProperty $ do
   (expected, actual) <- bisequence (fork ($ oracle) ($ function) (($ specification) . withErrors))
-  let comparison = Pretty actual === Pretty expected
+  let comparison = actual `shouldBe` expected
   return $ case expected of
     Left labelOfError -> QuickCheck.label labelOfError comparison
     Right _ -> QuickCheck.label "defined" comparison
@@ -88,8 +95,8 @@ chunksToList = coerce actualFunction
     actualFunction :: [NonEmpty Word8] -> [Word8]
     actualFunction = concatMap NonEmpty.toList
 
-chunksToByteStream :: [ArbitraryNonEmpty Word8] -> Lazy.ByteString
+chunksToByteStream :: forall foldable . (Foldable foldable, Coercible (foldable (NonEmpty Word8)) (foldable (ArbitraryNonEmpty Word8))) => foldable (ArbitraryNonEmpty Word8) -> Lazy.ByteString
 chunksToByteStream = coerce actualFunction
   where
-    actualFunction :: [NonEmpty Word8] -> Lazy.ByteString
+    actualFunction :: foldable (NonEmpty Word8) -> Lazy.ByteString
     actualFunction = foldr (Lazy.Chunk . Strict.pack . NonEmpty.toList) Lazy.Empty

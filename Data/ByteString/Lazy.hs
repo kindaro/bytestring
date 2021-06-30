@@ -456,8 +456,9 @@ foldr k = foldrChunks (flip (S.foldr k))
 
 -- | 'foldr'' is like 'foldr', but strict in the accumulator.
 foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
-foldr' _ a Empty = a
-foldr' f a (Chunk c cs) = S.foldr' f (foldr' f a cs) c
+foldr' f = flip (foldlChunks f' id)
+  where
+    f' k x z = k $! flip (S.foldr f) x z
 {-# INLINE foldr' #-}
 
 -- | 'foldl1' is a variant of 'foldl' that has no starting value
